@@ -3,7 +3,7 @@
 // @version      1.2.3
 // @description  向后端服务器发送请求，执行多节点的 curl、ping 和 traceroute 测试
 // @author       雪桃
-// @timestamp    2025-02-13
+// @timestamp    2025-02-14
 // @license      MIT
 // @homepageURL  https://github.com/LoranaAurelia/sdjs_nettool.plug
 // ==/UserScript==
