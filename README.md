@@ -43,7 +43,7 @@ python3 node.py
 
 默认监听 `48080` 端口。
 
-### 2.2 创建 `systemd` 服务
+### 2.2 创建 `systemd` 服务（记得修改路径）
 
 ```bash
 cat <<EOF > /etc/systemd/system/node.service
@@ -82,7 +82,7 @@ python3 ping_servaice.py
 
 默认监听 `48081` 端口。
 
-### 3.2 创建 `systemd` 服务
+### 3.2 创建 `systemd` 服务（记得修改路径）
 
 ```bash
 cat <<EOF > /etc/systemd/system/ping_servaice.service
