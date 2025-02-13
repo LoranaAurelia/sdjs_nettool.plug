@@ -1,60 +1,52 @@
-# Ping Service & Node
+本项目包含两个主要的后端组件：
 
-## 项目介绍
+1. `node.py`：提供基本的 ping、curl 访问测试以及 traceroute（使用 nexttrace）
+2. `ping_servaice.py`：用于代理 `node.py` 进行访问，并生成可视化图像（需 PIL 和字体支持）
 
-本项目包含两个主要组件：
+## 1. 依赖安装
 
-1. `ping_servaice.py`（主服务器）：
-   - 负责处理 API 请求，转发 Ping/Traceroute/Curl 测试到指定的节点。
-   - 提供基于 ANSI 颜色代码解析的可视化图像输出。
-   - 需要 PIL（Pillow）库来生成带颜色的图片。
-   
-2. `node.py`（节点）：
-   - 作为远程节点，接收主服务器的请求并执行 Ping、Traceroute 和 Curl 任务。
-   - 只部署 `node.py` 时不需要安装图像处理相关库。
-   
-## 安装与部署
+所有 VPS 需要带有 Python 运行环境，运行 node.py 的节点 vps 需要安装 `nexttrace` 来支持Traceroute，运行 ping_servaice.py 的主机需要 PIL 与字体支持。
 
-### 1. 安装依赖
+### 1.1 安装 `nexttrace`（仅节点 vps )
 
-#### 在主服务器（部署 `ping_servaice.py`）
-```bash
-sudo apt update && sudo apt install -y python3 python3-pip
-pip install flask requests pillow
-```
-
-#### 在节点（仅部署 `node.py`）
-```bash
-sudo apt update && sudo apt install -y python3 python3-pip
-pip install flask requests
-```
-
-### 2. 安装 NextTrace（用于 Traceroute）
 ```bash
 curl nxtrace.org/nt | bash
 ```
 
-### 3. 运行服务
+### 1.2 安装 Python 依赖
 
-#### 运行 `ping_servaice.py`（主服务器）
+所有 VPS 需安装基本 Python 依赖：
+
 ```bash
-python3 ping_servaice.py
+apt update && apt install -y python3 python3-pip
+pip install flask requests
 ```
 
-#### 运行 `node.py`（节点）
+#### 如果部署 `ping_servaice.py`，还需额外安装：
+
+```bash
+apt install -y fonts-noto-cjk fonts-dejavu
+pip install pillow
+```
+
+## 2. 部署 `node.py`
+
+适用于所有 VPS，提供基本 ping、curl 访问测试及 traceroute。
+
+### 2.1 启动 `node.py`
+
 ```bash
 python3 node.py
 ```
 
-## Systemd 服务配置（自动运行）
+默认监听 `48080` 端口。
 
-### 创建 Systemd 服务
+### 2.2 创建 `systemd` 服务
 
-#### `node.py`（节点）
-创建 `/etc/systemd/system/node.service` 文件，并添加以下内容：
-```ini
+```bash
+cat <<EOF > /etc/systemd/system/node.service
 [Unit]
-Description=Ping Node Service
+Description=Node Backend Service
 After=network.target
 
 [Service]
@@ -65,11 +57,33 @@ WorkingDirectory=/path/to/
 
 [Install]
 WantedBy=multi-user.target
+EOF
 ```
 
-#### `ping_servaice.py`（主服务器）
-创建 `/etc/systemd/system/ping_service.service` 文件，并添加以下内容：
-```ini
+然后启动并设置开机自启：
+
+```bash
+systemctl daemon-reload
+systemctl enable node
+systemctl start node
+```
+
+## 3. 部署 `ping_servaice.py`
+
+适用于主控端，用于可视化 `node.py` 返回的数据。
+
+### 3.1 启动 `ping_servaice.py`
+
+```bash
+python3 ping_servaice.py
+```
+
+默认监听 `48081` 端口。
+
+### 3.2 创建 `systemd` 服务
+
+```bash
+cat <<EOF > /etc/systemd/system/ping_servaice.service
 [Unit]
 Description=Ping Service Backend
 After=network.target
@@ -82,32 +96,45 @@ WorkingDirectory=/path/to/
 
 [Install]
 WantedBy=multi-user.target
+EOF
 ```
 
-### 启动与管理服务
+然后启动并设置开机自启：
+
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl enable node.service  # 启用节点服务
-sudo systemctl start node.service   # 启动节点服务
-
-sudo systemctl enable ping_service.service  # 启用主服务器服务
-sudo systemctl start ping_service.service   # 启动主服务器服务
+systemctl daemon-reload
+systemctl enable ping_servaice
+systemctl start ping_servaice
 ```
 
-## 添加节点
+## 4. 端口修改
 
-在 `ping_servaice.py` 的 `NODES` 变量中添加新的节点，例如：
+- `node.py` 监听 `48080`，如需修改，请更改 `node.py` 代码：
+  ```python
+  app.run(host="0.0.0.0", port=新端口)
+  ```
+- `ping_servaice.py` 监听 `48081`，如需修改，请更改 `ping_servaice.py` 代码：
+  ```python
+  app.run(host="0.0.0.0", port=新端口)
+  ```
+
+## 5. 修改 `ping_servaice.py` 节点列表
+
+`ping_servaice.py` 的 `NODES` 变量存储了可用的 `node.py` 服务器：
 
 ```python
 NODES = {
     "local": {"ip": "localhost", "alias": "本机"},
-    "node1": {"ip": "192.168.1.100", "alias": "节点1"},
-    "node2": {"ip": "203.0.113.50", "alias": "远程节点"},
 }
 ```
 
-然后重新启动 `ping_servaice.py` 使配置生效：
-```bash
-sudo systemctl restart ping_service.service
+如果你有多个 VPS 运行 `node.py`，需要在 `NODES` 中添加它们，例如：
+
+```python
+NODES = {
+    "local": {"ip": "localhost", "alias": "本机"},
+    "vps1": {"ip": "192.168.1.10", "alias": "东京服务器"},
+    "vps2": {"ip": "192.168.1.11", "alias": "纽约服务器"},
+}
 ```
 
