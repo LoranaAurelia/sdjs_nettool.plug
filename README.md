@@ -1,3 +1,5 @@
+本项目仅支持 Linux。
+
 本项目包含两个主要的后端组件：
 
 1. `node.py`：提供基本的 ping、curl 访问测试以及 traceroute（使用 nexttrace）
